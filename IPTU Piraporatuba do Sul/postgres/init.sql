@@ -1,0 +1,90 @@
+CREATE TABLE IF NOT EXISTS tipo_usuario (
+    id SERIAL PRIMARY KEY,
+    tipo VARCHAR(100)
+);
+INSERT INTO tipo_usuario (tipo)
+VALUES
+('Admin'),
+('Gerente'),
+('Municipe');
+
+CREATE TABLE IF NOT EXISTS usuario (
+    id SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    senha VARCHAR(100) NOT NULL,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    tipo_usuario_id INTEGER NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+     CONSTRAINT fk_usuario_tipo
+        FOREIGN KEY (tipo_usuario_id)
+        REFERENCES tipo_usuario (id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+);
+
+INSERT INTO usuario (nome, email, senha, tipo_usuario_id)
+VALUES 
+('Rodrigo Silva Peres', 'rodrigo@email.com', 'senha123', 1),
+('Aluno Teste', 'aluno@email.com', 'senha123', 2);
+
+CREATE TABLE IF NOT EXISTS iptu (
+    id SERIAL PRIMARY KEY,
+    usuario_id INT REFERENCES usuario(id) NULL,
+    nome VARCHAR(100),
+    valor NUMERIC(10,2)
+);
+
+INSERT INTO iptu (usuario_id, nome, valor)
+VALUES
+(null, 'ANDRE DE HOLANDA VENTURA', 1000.00),
+(null, 'ANDRE MICHEL DE CARVALHO', 1000.00),
+(null, 'BRUNA CAIADO REGRA', 1000.00),
+(null, 'BRUNO ALVES PEREIRA DOS SANTOS', 1000.00),
+(null, 'BRUNO HENRIQUE MENEZES RAMOS', 1000.00),
+(null, 'BRUNO HENRIQUE OLIVEIRA', 1000.00),
+(null, 'CLAUDIO DOS SANTOS SIQUEIRA JUNIOR', 1000.00),
+(null, 'EDLAINE DE PAULA SOUZA', 1000.00),
+(null, 'EDUARDO HENRIQUE DE SOUZA BRITO', 1000.00),
+(null, 'FELIPE FERNANDES CORREA', 1000.00),
+(null, 'GABRIEL HENRIQUE SIQUEIRA PINTO', 1000.00),
+(null, 'GABRIEL JULIANI BERNES', 1000.00),
+(null, 'LEANDRO BARBOSA CARDOSO', 1000.00),
+(null, 'LUANA PINHEIRO DOS SANTOS VENANCIO', 1000.00),
+(null, 'LUCAS ROQUE ALVIM CRUZ', 1000.00),
+(null, 'LUIZ FELIPE DOS SANTOS', 1000.00),
+(null, 'MARIA EDUARDA FERREIRA SILVA', 1000.00),
+(null, 'MAURICIO OLIVEIRA MEDEIROS CEPINHO', 1000.00),
+(null, 'NICOLAS HENRIQUE SILVA DE OLIVEIRA', 1000.00),
+(null, 'NICOLAS JOSE DE AQUINO', 1000.00),
+(null, 'PAMELA DA SILVA FREITAS', 1000.00),
+(null, 'PAULO ALEXANDRE BUENO', 1000.00),
+(null, 'PEDRO FELIPE DE ARAUJO OLIVEIRA', 1000.00),
+(null, 'POLLYANA ROBERTA DE SOUSA', 1000.00),
+(null, 'RAQUEL MASSAE NAKAMURA SIQUEIRA', 1000.00),
+(null, 'RODRIGO DE ANDRADE PAULA', 1000.00),
+(null, 'TIAGO SANTINI DA SILVA', 1000.00),
+(null, 'VICTOR HUGO DANTAS CARBAJO', 1000.00),
+(null, 'VINICIUS BARBOSA FERNANDES', 1000.00),
+(null, 'VITOR FRANCISCO DE AZEVEDO ZONZINI', 1000.00),
+(1, 'RODRIGO SILVA PERES', 10.00);
+
+
+
+CREATE TABLE IF NOT EXISTS comentario (
+    id SERIAL PRIMARY KEY,
+    texto VARCHAR(255),
+    usuario_id INTEGER NOT NULL,
+    CONSTRAINT fk_usuario_comentario
+        FOREIGN KEY (usuario_id)
+        REFERENCES usuario (id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+);
+INSERT INTO comentario (texto, usuario_id) VALUES
+('Nossa pirapora é linda e tem uma ótima gestão.', 1),
+('Concordo chefinho!', 2);
+
+CREATE TABLE IF NOT EXISTS dados_roubados (
+    id SERIAL PRIMARY KEY,
+    dados VARCHAR(255)
+);

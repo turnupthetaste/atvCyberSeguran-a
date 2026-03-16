@@ -1,0 +1,39 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    networks:
+      - app-network
+    depends_on:
+      - postgres
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+  postgres:
+    image: postgres:16
+    container_name: postgres-aula
+    restart: always
+    environment:
+      POSTGRES_DB: aula_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: senha123
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres:/docker-entrypoint-initdb.d
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
