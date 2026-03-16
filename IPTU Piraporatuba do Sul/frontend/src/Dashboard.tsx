@@ -1,28 +1,51 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import type { Comentario } from "./Tipos/Comentario";
 import type { Iptuu } from "./Tipos/Iptuu";
 
+// [SEGURANÇA] Endpoint movido para variável de ambiente para evitar
+// HTTP hardcoded e permitir uso de HTTPS em produção. (mitigação 1.7)
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+
 function Dashboard() {
+  const navigate = useNavigate();
+
+  // [SEGURANÇA - RISCO CONHECIDO] Dados do usuário lidos do localStorage.
+  // O localStorage pode ser manipulado por qualquer script na página (XSS)
+  // ou manualmente pelo usuário. A solução definitiva é usar tokens JWT
+  // validados pelo servidor a cada requisição, sem depender de dados
+  // enviados pelo cliente. (ponto de ataque 1.3 e 1.5 — mitigação parcial)
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [menuAberto, setMenuAberto] = useState(false);
   const [iptu, setIptu] = useState<Iptuu | null>(null);
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
-  const [novoComentario, setNovoComentario] = useState("");
-  const [tipoCodigo, setTipoCodigo] = useState("codigoDeBarras");
-  const [htmlRetorno, setHtmlRetorno] = useState("");
 
   useEffect(() => {
+    // [SEGURANÇA] Guarda de rota: redireciona para /login se não houver
+    // sessão iniciada no localStorage, impedindo acesso direto ao Dashboard
+    // sem autenticação. (mitigação 1.6)
+    if (!user?.id) {
+      navigate("/login");
+      return;
+    }
+
     const buscarDados = async () => {
       try {
-
-        const response = await axios.get<{ iptu: Iptuu[] }>(
-          "http://localhost:3001/usuario/iptu-por-usuario?usuarioId=" + user.id
+        const response = await axios.post(
+          `${API_URL}/usuario/iptu-por-usuario`,
+          // [SEGURANÇA - RISCO CONHECIDO] O userId é enviado no corpo da
+          // requisição a partir do localStorage, sem token de autenticação.
+          // Isso permite que qualquer usuário altere o id e acesse dados de
+          // outro munícipe (IDOR). A correção definitiva requer que o servidor
+          // identifique o usuário via token JWT no header Authorization,
+          // ignorando o userId enviado pelo cliente. (ponto de ataque 1.5)
+          { userId: user.id }
         );
 
-        setIptu(response.data.iptu[0]);
+        setIptu(response.data);
       } catch (error) {
         console.error("Erro ao buscar IPTU", error);
       }
@@ -31,7 +54,7 @@ function Dashboard() {
     const buscarComentarios = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:3001/comentario"
+          `${API_URL}/comentario`
         );
 
         setComentarios(response.data);
@@ -39,39 +62,10 @@ function Dashboard() {
         console.error("Erro ao buscar comentários", error);
       }
     };
-    if (user?.id) {
-      buscarDados();
-      buscarComentarios();
-    }
-  }, [user]);
 
-  const enviarComentario = async () => {
-    if (!novoComentario.trim()) return;
-
-    try {
-      await axios.post("http://localhost:3001/comentario", {
-        usuarioId: user.id,
-        texto: novoComentario,
-      });
-
-      // Atualiza lista após enviar
-      const response = await axios.get("http://localhost:3001/comentario");
-      setComentarios(response.data);
-
-      setNovoComentario("");
-    } catch (error) {
-      console.error("Erro ao enviar comentário", error);
-    }
-  };
-  const buscarCodigo = async () => {
-    const response = await axios.get(
-      "http://localhost:3001/usuario/codigo-qr-ou-barra?tipo=" + tipoCodigo
-    );
-
-    setHtmlRetorno(response.data);
-  };
-
-  // dados fictícios de IPTU
+    buscarDados();
+    buscarComentarios();
+  }, [user?.id]);
 
 
   return (
@@ -103,63 +97,43 @@ function Dashboard() {
         {/* <p>Status: {iptu && iptu.pago ? "Pago ✅" : "Em aberto ❌"}</p> */}
         <p>Status: {iptu?.valor}</p>
       </div>
-      <select
-        value={tipoCodigo}
-        onChange={(e) => setTipoCodigo(e.target.value)}
-      >
-        <option value="codigoDeBarras">Código de Barras</option>
-        <option value="qrcode">QR Code</option>
-      </select>
 
-      <button onClick={buscarCodigo}>
-        Gerar Código
-      </button>
-      {htmlRetorno && (
-        <div
-          dangerouslySetInnerHTML={{
-            __html: htmlRetorno,
-          }}
-        />
-      )}
       <div style={{ padding: "40px" }}>
         <h2>Lista de Comentários</h2>
-        <div style={{ marginBottom: "20px" }}>
-          <h3>Adicionar Comentário</h3>
 
-          <textarea
-            value={novoComentario}
-            onChange={(e) => setNovoComentario(e.target.value)}
-            placeholder="Digite seu comentário..."
-            style={{
-              width: "100%",
-              height: "80px",
-              padding: "10px",
-              marginBottom: "10px",
-            }}
-          />
-
-          <button onClick={enviarComentario}>
-            Enviar Comentário
-          </button>
-        </div>
         <ul>
           {comentarios.map((comentario, index) => (
             <li key={index}>
-              <div
-                dangerouslySetInnerHTML={{
-                  __html: `
-                  <strong>Usuário:</strong> ${comentario.usuario_id}
-                  <br/>
-                  <strong>Mensagem:</strong> ${comentario.texto}
-                `,
-                }}
-              />
+              {/*
+                [SEGURANÇA] dangerouslySetInnerHTML REMOVIDO e substituído
+                por JSX puro. O bloco original injetava comentario.texto e
+                comentario.usuario_id diretamente no DOM sem sanitização,
+                permitindo XSS Armazenado — qualquer script salvo no banco
+                seria executado no navegador de todos os usuários.
+                O React escapa automaticamente o conteúdo renderizado como
+                texto, eliminando esse vetor. (mitigação 1.4)
+
+                CÓDIGO REMOVIDO:
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: `
+                      <strong>Usuário:</strong> ${comentario.usuario_id}
+                      <br/>
+                      <strong>Mensagem:</strong> ${comentario.texto}
+                    `,
+                  }}
+                />
+              */}
+              <div>
+                <strong>Usuário:</strong> {comentario.usuario_id}
+                <br />
+                <strong>Mensagem:</strong> {comentario.texto}
+              </div>
             </li>
           ))}
         </ul>
       </div>
     </div>
-
   );
 }
 

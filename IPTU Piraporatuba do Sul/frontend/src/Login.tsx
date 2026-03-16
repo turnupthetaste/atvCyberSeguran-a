@@ -2,6 +2,10 @@ import { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
+// [SEGURANÇA] Endpoint movido para variável de ambiente para evitar
+// HTTP hardcoded e permitir uso de HTTPS em produção (mitigação 1.7)
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+
 function Login() {
     const navigate = useNavigate();
     const [isRegistering, setIsRegistering] = useState(false);
@@ -16,12 +20,16 @@ function Login() {
 
         try {
             const response = await axios.post(
-                "http://localhost:3001/usuario/login",
+                `${API_URL}/usuario/login`,
                 { email, password }
             );
             const user = response.data.user;
 
-            // salvando no localStorage
+            // [SEGURANÇA - RISCO CONHECIDO] Dados do usuário armazenados no
+            // localStorage são acessíveis por qualquer script JavaScript na página,
+            // tornando-os vulneráveis a XSS. A correção definitiva é utilizar
+            // cookies HttpOnly gerenciados pelo servidor, que não são acessíveis
+            // via JavaScript. (ponto de ataque 1.3 — mitigação parcial)
             localStorage.setItem("user", JSON.stringify(user));
 
             navigate("/dashboard");
@@ -35,7 +43,7 @@ function Login() {
 
         try {
             const response = await axios.post(
-                "http://localhost:3001/usuario/novo-login",
+                `${API_URL}/usuario/novo-login`,
                 { email, password, nome }
             );
             if (response.data.success) {
@@ -66,21 +74,36 @@ function Login() {
                     />
                 )}
 
+                {/*
+                  [SEGURANÇA] type="email" adicionado para que o navegador
+                  valide o formato antes de enviar ao servidor, dificultando
+                  injeção de payloads arbitrários. maxLength={150} limita o
+                  tamanho da entrada. (mitigação 1.2)
+                */}
                 <input
-                    type="text"
+                    type="email"
                     placeholder="E-mail"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     style={styles.input}
+                    maxLength={150}
                     required
                 />
 
+                {/*
+                  [SEGURANÇA] maxLength={64} adicionado para limitar o tamanho
+                  do payload de senha, dificultando a injeção de scripts longos
+                  via esse campo. (mitigação 1.1)
+                  NOTA: a proteção definitiva contra SQL Injection deve ser feita
+                  no back-end com prepared statements / ORM parametrizado.
+                */}
                 <input
                     type="password"
                     placeholder="Senha"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     style={styles.input}
+                    maxLength={64}
                     required
                 />
 
